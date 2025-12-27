@@ -8,6 +8,7 @@ import { getSelectedLevel } from './domain/levelSettings'
 import type { TrainingMode } from './domain/trainingMode'
 import type { Preset } from './domain/presets'
 import { getPreset } from './domain/presetSettings'
+import { getTrainingMode } from './domain/modeSettings'
 import type { SessionRecordInput } from './domain/sessionStore'
 
 type Route = 'setup' | 'train' | 'history' | 'summary'
@@ -42,7 +43,7 @@ function App() {
   const [route, setRoute] = useState<Route>(() =>
     getRouteFromPath(window.location.pathname),
   )
-  const [trainingMode, setTrainingMode] = useState<TrainingMode>('normal')
+  const [trainingMode, setTrainingMode] = useState<TrainingMode>(() => getTrainingMode())
   const [trainingPreset, setTrainingPreset] = useState<Preset>(() => getPreset())
   const [lastSession, setLastSession] = useState<SessionRecordInput | null>(null)
 

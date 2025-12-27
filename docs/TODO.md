@@ -30,6 +30,7 @@
 - [ ] Topics v1.1.1 (pack filtering)
 - [x] US-006 Mistakes-only mode
 - [x] US-007 Presets (time/word count)
+- [x] US-009 Export / Import progress
 
 ## US-010 Offline RU translations (FreeDict)
 

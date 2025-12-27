@@ -31,6 +31,10 @@
 - Default commit behavior: Enter is required to commit a word.
 - Optional setting (Training settings): auto-advance on exact match, which commits without Enter.
 
+### Export / Import (v1.1)
+- Export/import uses a single JSON snapshot with `schemaVersion` for compatibility.
+- Import replaces history, but merges mistakes by taking max `mistakes` and timestamps.
+
 ## Translation strategy (MVP)
 
 - Translation is a dictionary lookup, not a live translator.

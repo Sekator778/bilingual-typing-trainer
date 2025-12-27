@@ -7,6 +7,7 @@ import { formatPackLabel, getPackNames, getPackRaw } from './domain/packRegistry
 import type { TrainingMode } from './domain/trainingMode'
 import { TRAINING_MODE_LABELS, TRAINING_MODES } from './domain/trainingMode'
 import { getMistakesForWords } from './domain/mistakesStore'
+import { getTrainingMode, setTrainingMode } from './domain/modeSettings'
 import type { Preset, PresetId } from './domain/presets'
 import { getPresetById, getPresetId, PRESET_OPTIONS } from './domain/presets'
 import { getPreset, setPreset } from './domain/presetSettings'
@@ -18,7 +19,7 @@ type SetupScreenProps = {
 
 const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
   const [level, setLevel] = useState<Level>(() => getSelectedLevel())
-  const [mode, setMode] = useState<TrainingMode>('normal')
+  const [mode, setMode] = useState<TrainingMode>(() => getTrainingMode())
   const [presetId, setPresetId] = useState<PresetId>(() => getPresetId(getPreset()))
   const [warning, setWarning] = useState('')
   const availableLevels = useMemo(() => getPackNames(), [])
@@ -44,6 +45,7 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
 
   const handleModeChange = (nextMode: TrainingMode) => {
     setMode(nextMode)
+    setTrainingMode(nextMode)
     setWarning('')
   }
 
@@ -61,6 +63,7 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
     setSelectedLevel(resolvedLevel)
     const preset = getPresetById(resolvedPresetId)
     setPreset(preset)
+    setTrainingMode(mode)
     onStart(resolvedLevel, mode, preset)
   }
 

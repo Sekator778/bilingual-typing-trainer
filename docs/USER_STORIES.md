@@ -87,3 +87,18 @@ so that I can efficiently close my vocabulary and typing gaps.[10]
 - In “mistakes only” mode, the word list is limited to words with at least one recorded mistake, filtered by the current level pack.[10]
 - Words with more mistakes appear earlier (tie-break by recency).[10]
 - If there are no recorded mistakes for the selected level, the app shows a clear message and does not start a session.[5]
+
+***
+
+## US-009: Export / Import progress
+
+As a user,  
+I want to export and import my progress as a file  
+so that I can keep my history and mistakes across devices without accounts.
+
+### Acceptance Criteria
+- User can export a single JSON snapshot containing settings, history, and mistakes.
+- The export is schema-versioned and human-readable.
+- User can import a valid snapshot after confirming overwrite.
+- Import replaces history and merges mistakes (max mistakes and timestamps).
+- Invalid files show a clear inline error without crashing.

@@ -123,6 +123,26 @@ const safeRead = (): { sessions: SessionRecord[]; available: boolean } => {
 
 export const loadSessions = () => safeRead()
 
+export const replaceSessions = (
+  nextSessions: SessionRecord[],
+): { ok: boolean; sessions: SessionRecord[] } => {
+  if (!isStorageAvailable()) {
+    return { ok: false, sessions: [] }
+  }
+
+  const sanitized = nextSessions
+    .map((record) => normalizeSessionRecord(record))
+    .filter((record): record is SessionRecord => record !== null)
+    .slice(0, MAX_SESSIONS)
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized))
+    return { ok: true, sessions: sanitized }
+  } catch {
+    return { ok: false, sessions: sanitized }
+  }
+}
+
 export const appendSession = (
   snapshot: SessionRecordInput,
 ): { ok: boolean; sessions: SessionRecord[] } => {
