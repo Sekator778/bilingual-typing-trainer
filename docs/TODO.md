@@ -14,9 +14,11 @@
 - [ ] Add toggle: voice on/off (optional in v0.2)
 
 ## Later (v0.3)
-- [ ] Implement WPM + accuracy
-- [ ] Persist settings + session history
-- [ ] Add History screen
+- [x] Implement WPM + accuracy
+- [x] Persist settings + session history
+- [x] Add History screen
+- [ ] US-004 Pronunciation (TTS, Web Speech API)
+- [ ] (Polish) 1-line ellipsis translation
 
 ## v1.0
 - [ ] UI polish (zero-distraction)

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import wordListRaw from './data/raw/google-10000-english.txt?raw'
+import { appendSession } from './domain/sessionStore'
+import { StatsModule } from './domain/statsModule'
 import { localTranslationProvider } from './domain/translationProvider'
 import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
 import type { TranslationLanguage } from './domain/translationTypes'
@@ -17,6 +19,7 @@ const shuffleWords = (words: string[]) => {
 }
 
 const ERROR_DISPLAY_MS = 700
+const STATS_TICK_MS = 1000
 const LANGUAGE_OPTIONS: Array<{ code: TranslationLanguage; label: string }> = [
   { code: 'ua', label: 'UA' },
   { code: 'ru', label: 'RU' },
@@ -36,7 +39,11 @@ const isLetter = (key: string) => /^[a-zA-Z]$/.test(key)
 
 const isFunctionKey = (key: string) => /^F\d+$/.test(key)
 
-const TrainingScreen = () => {
+type TrainingScreenProps = {
+  onShowHistory: () => void
+}
+
+const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const [wordIndex, setWordIndex] = useState(0)
   const [wordOrder, setWordOrder] = useState(() => shuffleWords(WORD_LIST))
   const [language, setLanguage] = useState<TranslationLanguage>(() =>
@@ -45,8 +52,16 @@ const TrainingScreen = () => {
   const [typed, setTyped] = useState('')
   const [statusText, setStatusText] = useState('')
   const [errorFlash, setErrorFlash] = useState(false)
+  const [isSessionActive, setIsSessionActive] = useState(false)
+  const [statsView, setStatsView] = useState({
+    wpm: 0,
+    accuracy: 0,
+    wordsCompleted: 0,
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const errorTimerRef = useRef<number | null>(null)
+  const statsRef = useRef(new StatsModule())
+  const hasStoredSessionRef = useRef(false)
 
   const target = wordOrder[wordIndex % wordOrder.length]
   const targetLetters = useMemo(() => target.split(''), [target])
@@ -62,15 +77,71 @@ const TrainingScreen = () => {
     saveTranslationLanguage(language)
   }, [language])
 
+  const updateStatsView = useCallback((now = Date.now()) => {
+    const stats = statsRef.current
+    setStatsView({
+      wpm: stats.getWpm(now),
+      accuracy: Math.round(stats.getAccuracy() * 100),
+      wordsCompleted: stats.getWordsCompleted(),
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isSessionActive) {
+      return
+    }
+    const interval = window.setInterval(() => {
+      updateStatsView()
+    }, STATS_TICK_MS)
+
+    return () => window.clearInterval(interval)
+  }, [isSessionActive, updateStatsView])
+
+  const startSession = useCallback(
+    (initialChar?: string) => {
+      const now = Date.now()
+      statsRef.current.reset(now)
+      hasStoredSessionRef.current = false
+      setIsSessionActive(true)
+      setTyped(initialChar ?? '')
+      setStatusText('')
+      setErrorFlash(false)
+
+      if (initialChar) {
+        const isCorrect = initialChar === target[0]
+        statsRef.current.onCharTyped(isCorrect)
+      }
+
+      updateStatsView(now)
+    },
+    [target, updateStatsView],
+  )
+
+  const finalizeSession = useCallback(() => {
+    if (hasStoredSessionRef.current) {
+      return
+    }
+    const stats = statsRef.current
+    if (!stats.hasStarted() || !stats.hasActivity()) {
+      return
+    }
+    stats.stop()
+    appendSession(stats.getSnapshot())
+    hasStoredSessionRef.current = true
+  }, [])
+
   useEffect(() => {
     return () => {
+      finalizeSession()
       if (errorTimerRef.current !== null) {
         window.clearTimeout(errorTimerRef.current)
       }
     }
-  }, [])
+  }, [finalizeSession])
 
   const advanceWord = useCallback(() => {
+    statsRef.current.onWordCompleted()
+    updateStatsView()
     setWordIndex((prev) => {
       const nextIndex = prev + 1
       if (nextIndex >= wordOrder.length) {
@@ -82,7 +153,7 @@ const TrainingScreen = () => {
     setTyped('')
     setStatusText('')
     setErrorFlash(false)
-  }, [wordOrder.length])
+  }, [updateStatsView, wordOrder.length])
 
   const triggerError = useCallback(() => {
     if (errorTimerRef.current !== null) {
@@ -104,6 +175,31 @@ const TrainingScreen = () => {
 
       const { key } = event
 
+      if (!isSessionActive) {
+        if (key === ' ') {
+          event.preventDefault()
+          startSession()
+          return
+        }
+
+        if (isLetter(key)) {
+          event.preventDefault()
+          const nextChar = key.toLowerCase()
+          startSession(nextChar)
+          return
+        }
+
+        if (
+          key === 'Tab' ||
+          key.startsWith('Arrow') ||
+          key === 'Escape' ||
+          isFunctionKey(key)
+        ) {
+          event.preventDefault()
+        }
+        return
+      }
+
       if (key === 'Enter') {
         event.preventDefault()
         if (typed.length === target.length && typed === target) {
@@ -120,14 +216,21 @@ const TrainingScreen = () => {
         return
       }
 
+      if (key === ' ') {
+        event.preventDefault()
+        return
+      }
+
       if (isLetter(key)) {
         event.preventDefault()
-        setTyped((prev) => {
-          if (prev.length >= target.length) {
-            return prev
-          }
-          return prev + key.toLowerCase()
-        })
+        if (typed.length >= target.length) {
+          return
+        }
+        const nextChar = key.toLowerCase()
+        const isCorrect = nextChar === target[typed.length]
+        statsRef.current.onCharTyped(isCorrect)
+        updateStatsView()
+        setTyped(typed + nextChar)
         return
       }
 
@@ -140,28 +243,48 @@ const TrainingScreen = () => {
         event.preventDefault()
       }
     },
-    [advanceWord, target, triggerError, typed],
+    [
+      advanceWord,
+      isSessionActive,
+      startSession,
+      target,
+      triggerError,
+      typed,
+      updateStatsView,
+    ],
   )
+
+  const { wpm, accuracy, wordsCompleted } = statsView
+
+  const handleShowHistory = useCallback(() => {
+    finalizeSession()
+    onShowHistory()
+  }, [finalizeSession, onShowHistory])
 
   return (
     <div className="trainer">
       <header className="trainer__header">
         <div className="trainer__toolbar">
           <p className="trainer__eyebrow">Single-word training</p>
-          <div className="language-toggle" role="group" aria-label="Translation language">
-            {LANGUAGE_OPTIONS.map((option) => (
-              <button
-                key={option.code}
-                type="button"
-                className={`language-toggle__button ${
-                  language === option.code ? 'is-active' : ''
-                }`}
-                onClick={() => setLanguage(option.code)}
-                aria-pressed={language === option.code}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="trainer__actions">
+            <div className="language-toggle" role="group" aria-label="Translation language">
+              {LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  key={option.code}
+                  type="button"
+                  className={`language-toggle__button ${
+                    language === option.code ? 'is-active' : ''
+                  }`}
+                  onClick={() => setLanguage(option.code)}
+                  aria-pressed={language === option.code}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="ghost-button" onClick={handleShowHistory}>
+              History
+            </button>
           </div>
         </div>
         <h1 className="trainer__title">Type the word exactly</h1>
@@ -171,6 +294,11 @@ const TrainingScreen = () => {
       </header>
 
       <section className="trainer__word" aria-live="polite">
+        {!isSessionActive && (
+          <div className="session-overlay" role="status" aria-live="polite">
+            <span className="session-overlay__content">Press Space to start</span>
+          </div>
+        )}
         <div className={`word ${errorFlash ? 'word--shake' : ''}`}>
           {targetLetters.map((letter, index) => {
             const state = getCharState(target, typed, index)
@@ -206,6 +334,20 @@ const TrainingScreen = () => {
         />
         <div className="trainer__status" role="status" aria-live="polite">
           {statusText}
+        </div>
+        <div className="stats-strip" aria-live="polite">
+          <div className="stats-strip__item">
+            <span className="stats-strip__label">WPM</span>
+            <span className="stats-strip__value">{wpm}</span>
+          </div>
+          <div className="stats-strip__item">
+            <span className="stats-strip__label">Accuracy</span>
+            <span className="stats-strip__value">{accuracy}%</span>
+          </div>
+          <div className="stats-strip__item">
+            <span className="stats-strip__label">Words</span>
+            <span className="stats-strip__value">{wordsCompleted}</span>
+          </div>
         </div>
       </section>
     </div>

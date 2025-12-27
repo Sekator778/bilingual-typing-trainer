@@ -12,7 +12,7 @@ afterEach(() => {
 
 const renderTrainingScreen = async () => {
   const { default: TrainingScreen } = await import('./TrainingScreen')
-  return render(<TrainingScreen />)
+  return render(<TrainingScreen onShowHistory={vi.fn()} />)
 }
 
 describe('TrainingScreen', () => {
