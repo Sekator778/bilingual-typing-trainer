@@ -1,7 +1,8 @@
+# Bilingual Typing Trainer
+
 ![CI](https://github.com/Sekator778/bilingual-typing-trainer/actions/workflows/ci.yml/badge.svg)
 
-````md
-# Bilingual Typing Trainer
+A zero-distraction touch-typing trainer for English words with translation and pronunciation.
 
 A zero-distraction touch-typing trainer for English words with:
 - always-visible translation (RU/UA/DE)
@@ -152,5 +153,3 @@ PRs welcome. Please:
 ## License
 
 See repository license file(s) and `docs/ATTRIBUTION.md` for third-party data licensing.
-
-```
