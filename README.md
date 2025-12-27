@@ -1,73 +1,156 @@
-# React + TypeScript + Vite
+## README.md (готовый текст)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+````md
+# Bilingual Typing Trainer
 
-Currently, two official plugins are available:
+A zero-distraction touch-typing trainer for English words with:
+- always-visible translation (RU/UA/DE)
+- English pronunciation (Web Speech / TTS)
+- session presets (by time / by words)
+- mistakes-only mode (focused repetition)
+- progress tracking (WPM, accuracy, history)
+- export/import progress (local-first)
+- offline-first translations bundle with an ops pipeline for dictionary refresh
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Why this exists
 
-## React Compiler
+Most typing trainers improve speed but don’t help you retain vocabulary meaning.
+This app aims to combine touch typing with vocabulary learning:
+you type an English word, see the translation immediately, and can listen to pronunciation.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+### Training
+- Single-word training with realtime error highlighting
+- Commit rule:
+  - Default: **Enter** commits the word
+  - Optional: **Auto-advance** commits on exact match (no Enter)
+- Space-to-start flow to avoid accidental start
+- Presets:
+  - Infinite
+  - By words (e.g. 25/50/100)
+  - By time (e.g. 3/5/10 minutes)
+- Summary screen after session completion
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Vocabulary
+- Translation line is always visible (no hover/click/popups)
+- Translation language: **RU / UA / DE**
+- Translation provider returns a string (includes placeholder `—` when missing)
+- Optional offline dictionary refresh pipeline (see “Operations”)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Pronunciation
+- Speak button near the word
+- Auto-speak toggle
+- Shortcut support
+- Graceful fallback when TTS is unavailable
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Progress
+- Session stats: WPM, accuracy, words completed, duration
+- History list with metadata (level, mode, preset, outcome)
+- Mistakes store per word and “Mistakes only” mode
+- Export/Import progress (JSON snapshot)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Tech Stack
+- Vite + React + TypeScript
+- Vitest + Testing Library
+- Web Speech API for pronunciation
+- Local-first persistence (localStorage)
+- Offline dictionary bundles in `public/`
+
+## Project Structure (high level)
+
+- `src/`
+  - `domain/` — providers, stores, stats, presets, settings
+  - `data/` — word lists, packs, static translations
+  - screens: `SetupScreen`, `TrainingScreen`, `HistoryScreen`, `SummaryScreen`
+- `public/`
+  - `translations.v1.json` — generated translations bundle
+- `scripts/`
+  - dictionary build/refresh scripts (offline)
+- `docs/`
+  - `DECISIONS.md` — architecture & product decisions
+  - `OPERATIONS.md` — runbooks (dictionary refresh, etc.)
+  - `ATTRIBUTION.md` — data sources and licensing
+
+## Getting Started
+
+### Requirements
+- Node.js 18+ (recommended: latest LTS)
+- npm
+
+### Install
+```bash
+npm install
+````
+
+### Run locally
+
+```bash
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Tests / Lint / Build
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+npm run test:run
+npm run lint
+npm run build
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Word Packs (Levels)
+
+The trainer supports curated level packs (A2/B1/B2/TOEFL/TECH).
+Packs are plain text files (one word per line, `a-z` only).
+
+## Translations: Offline-first bundle
+
+The app loads translations from:
+
+* `public/translations.v1.json` (bundle)
+* optional static translations in code (fallback/other langs)
+
+If a word has no translation, the UI shows a placeholder `—`.
+
+## Operations (Maintainers)
+
+### Build RU bundle from FreeDict (base)
+
+See `docs/OPERATIONS.md` for exact steps and file placement.
+
+### Refresh/enrich translations (DeepL, offline only)
+
+This is an **offline maintenance step** that updates `public/translations.v1.json`.
+It is never called from the browser runtime and requires an API key in `.env.local`.
+
+See `docs/OPERATIONS.md`.
+
+## Export / Import
+
+Export creates a JSON snapshot (settings + history + mistakes).
+Import validates schema and applies the snapshot (with safe merge rules).
+
+## Data Sources & Licensing
+
+Dictionary sources and licenses are documented in:
+
+* `docs/ATTRIBUTION.md`
+
+## Roadmap / Ideas
+
+* Topics (IT/Daily/Business) as a filter over packs
+* UA/DE dictionary pipelines similar to RU
+* IndexedDB storage (optional) for larger datasets
+* Admin dictionary UI (requires backend + auth)
+
+## Contributing
+
+PRs welcome. Please:
+
+* keep changes small and well-tested
+* run `npm run test:run && npm run lint && npm run build` before submitting
+
+## License
+
+See repository license file(s) and `docs/ATTRIBUTION.md` for third-party data licensing.
+
 ```
