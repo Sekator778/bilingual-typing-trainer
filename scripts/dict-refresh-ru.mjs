@@ -2,6 +2,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import {
+  applyCacheToBundle,
+  filterBundle,
+  getMissingWords,
+  isMissingRu,
+  normalizeRu,
+} from './dict-refresh-ru-lib.mjs'
 
 const ENV_PATH = path.resolve(process.cwd(), '.env.local')
 const WORD_LIST_PATH = path.resolve('src/data/raw/google-10000-english.txt')
@@ -9,7 +16,6 @@ const PACKS_DIR = path.resolve('src/data/packs')
 const BUNDLE_PATH = path.resolve('public/translations.v1.json')
 const CACHE_DIR = path.resolve('tools/cache')
 const CACHE_PATH = path.join(CACHE_DIR, 'deepl-ru-cache.json')
-const PLACEHOLDER = '—'
 const DEFAULT_API_BASE = 'https://api-free.deepl.com'
 const BATCH_SIZE = 40
 const BATCH_DELAY_MS = 250
@@ -104,26 +110,6 @@ const pickFirstTranslation = (text) => {
   return first
 }
 
-const normalizeRu = (text) => {
-  if (typeof text !== 'string') {
-    return ''
-  }
-  const trimmed = text.trim()
-  if (!trimmed || trimmed === PLACEHOLDER || trimmed === 'undefined') {
-    return ''
-  }
-  return trimmed
-}
-
-const getEntryRu = (entry) => {
-  if (!entry || typeof entry !== 'object') {
-    return undefined
-  }
-  return entry.ru
-}
-
-const isMissingRu = (entry) => !normalizeRu(getEntryRu(entry))
-
 const ensureDir = (dirPath) => {
   fs.mkdirSync(dirPath, { recursive: true })
 }
@@ -194,30 +180,17 @@ const main = async () => {
   )
 
   const rawBundle = readJson(BUNDLE_PATH, {})
-  const bundle = {}
-  for (const [key, value] of Object.entries(rawBundle)) {
-    if (!wordSet.has(key)) {
-      continue
-    }
-    bundle[key] = typeof value === 'object' && value !== null ? { ...value } : {}
-  }
+  const bundle = filterBundle(rawBundle, wordSet)
 
   ensureDir(CACHE_DIR)
   const cache = readJson(CACHE_PATH, {})
   let updatedFromCache = false
 
-  for (const word of words) {
-    if (!isMissingRu(bundle[word])) {
-      continue
-    }
-    const cached = normalizeRu(cache[word])
-    if (cached) {
-      bundle[word] = { ...(bundle[word] || {}), ru: cached }
-      updatedFromCache = true
-    }
-  }
+  const cachedResult = applyCacheToBundle(words, bundle, cache)
+  const nextBundle = cachedResult.bundle
+  updatedFromCache = cachedResult.updatedFromCache
 
-  const beforeCount = countCoverage(words, bundle)
+  const beforeCount = countCoverage(words, nextBundle)
   console.log(
     `Before: RU coverage ${beforeCount}/${words.length} (${(
       (beforeCount / words.length) *
@@ -225,20 +198,14 @@ const main = async () => {
     ).toFixed(2)}%)`,
   )
 
-  const missing = words.filter((word) => {
-    if (!isMissingRu(bundle[word])) {
-      return false
-    }
-    const cached = normalizeRu(cache[word])
-    return !cached
-  })
+  const missing = getMissingWords(words, nextBundle, cache)
 
   console.log(`Missing for DeepL: ${missing.length}`)
   if (missing.length === 0) {
     if (updatedFromCache) {
       const ordered = {}
-      for (const key of Object.keys(bundle).sort()) {
-        ordered[key] = bundle[key]
+      for (const key of Object.keys(nextBundle).sort()) {
+        ordered[key] = nextBundle[key]
       }
       writeJson(BUNDLE_PATH, ordered)
       console.log('Bundle updated from cache.')
@@ -247,6 +214,8 @@ const main = async () => {
     }
     return
   }
+
+  const enrichedBundle = { ...nextBundle }
 
   for (let i = 0; i < missing.length; i += BATCH_SIZE) {
     const batch = missing.slice(i, i + BATCH_SIZE)
@@ -263,7 +232,7 @@ const main = async () => {
         continue
       }
       cache[word] = ru
-      bundle[word] = { ...(bundle[word] || {}), ru }
+      enrichedBundle[word] = { ...(enrichedBundle[word] || {}), ru }
     }
 
     writeJson(CACHE_PATH, cache)
@@ -274,8 +243,8 @@ const main = async () => {
   }
 
   const ordered = {}
-  for (const key of Object.keys(bundle).sort()) {
-    ordered[key] = bundle[key]
+  for (const key of Object.keys(enrichedBundle).sort()) {
+    ordered[key] = enrichedBundle[key]
   }
   writeJson(BUNDLE_PATH, ordered)
 

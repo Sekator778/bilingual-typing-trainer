@@ -38,3 +38,4 @@
 - `TranslationProvider` must always return a string (including placeholder `—`).
 - UI must not implement translation fallbacks; it renders provider output only.
 - Online translation (DeepL/Google/LibreTranslate) is out of scope for MVP and may be added as an optional provider in v1.1.
+- DeepL enrichment is an offline build/ops step; the frontend never calls DeepL.
