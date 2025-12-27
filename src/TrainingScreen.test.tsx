@@ -34,4 +34,11 @@ describe('TrainingScreen', () => {
     const translation = within(container).getByTestId('translation')
     expect(translation.textContent).toBe(TRANSLATION_PLACEHOLDER)
   })
+
+  it('renders a disabled speak button when speech synthesis is unavailable', async () => {
+    await renderTrainingScreen()
+
+    const speakButton = screen.getByRole('button', { name: /speak current/i })
+    expect((speakButton as HTMLButtonElement).disabled).toBe(true)
+  })
 })

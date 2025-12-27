@@ -10,6 +10,8 @@
 - Session history stored in localStorage (`typing.history.v1`) for MVP
 - Training stats show words completed only (no target count yet)
 - History view reachable via a small header button
+- Pronunciation uses Web Speech API; auto-speak default OFF and stored in localStorage (`btt.autoSpeak`)
+- Shortcut for speak: Alt+S (Option+S on macOS)
 
 ### Technical Notes (MVP)
 - Words for training are loaded from a local static dictionary file
@@ -24,4 +26,3 @@
 - `TranslationProvider` must always return a string (including placeholder `—`).
 - UI must not implement translation fallbacks; it renders provider output only.
 - Online translation (DeepL/Google/LibreTranslate) is out of scope for MVP and may be added as an optional provider in v1.1.
-

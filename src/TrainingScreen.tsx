@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import wordListRaw from './data/raw/google-10000-english.txt?raw'
 import { appendSession } from './domain/sessionStore'
+import { loadAutoSpeak, saveAutoSpeak } from './domain/pronunciationSettings'
 import { StatsModule } from './domain/statsModule'
+import { webSpeechPronunciationProvider } from './domain/webSpeechPronunciationProvider'
 import { localTranslationProvider } from './domain/translationProvider'
 import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
 import type { TranslationLanguage } from './domain/translationTypes'
@@ -49,6 +51,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const [language, setLanguage] = useState<TranslationLanguage>(() =>
     loadTranslationLanguage(),
   )
+  const [autoSpeak, setAutoSpeak] = useState(() => loadAutoSpeak())
   const [typed, setTyped] = useState('')
   const [statusText, setStatusText] = useState('')
   const [errorFlash, setErrorFlash] = useState(false)
@@ -62,12 +65,14 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const errorTimerRef = useRef<number | null>(null)
   const statsRef = useRef(new StatsModule())
   const hasStoredSessionRef = useRef(false)
+  const lastSpokenWordRef = useRef<string | null>(null)
 
   const target = wordOrder[wordIndex % wordOrder.length]
   const targetLetters = useMemo(() => target.split(''), [target])
   const translation = useMemo(() => {
     return localTranslationProvider.getTranslation(target, language)
   }, [language, target])
+  const isSpeechAvailable = webSpeechPronunciationProvider.isAvailable()
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -76,6 +81,10 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   useEffect(() => {
     saveTranslationLanguage(language)
   }, [language])
+
+  useEffect(() => {
+    saveAutoSpeak(autoSpeak)
+  }, [autoSpeak])
 
   const updateStatsView = useCallback((now = Date.now()) => {
     const stats = statsRef.current
@@ -96,6 +105,45 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
 
     return () => window.clearInterval(interval)
   }, [isSessionActive, updateStatsView])
+
+  const speakCurrentWord = useCallback(() => {
+    if (!isSpeechAvailable) {
+      return
+    }
+    webSpeechPronunciationProvider.speak(target)
+    inputRef.current?.focus()
+  }, [isSpeechAvailable, target])
+
+  useEffect(() => {
+    if (!isSessionActive || !autoSpeak || !isSpeechAvailable) {
+      return
+    }
+
+    if (lastSpokenWordRef.current === target) {
+      return
+    }
+
+    lastSpokenWordRef.current = target
+    webSpeechPronunciationProvider.speak(target)
+  }, [autoSpeak, isSessionActive, isSpeechAvailable, target])
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!event.altKey || event.ctrlKey || event.metaKey) {
+        return
+      }
+
+      if (event.code !== 'KeyS') {
+        return
+      }
+
+      event.preventDefault()
+      speakCurrentWord()
+    }
+
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [speakCurrentWord])
 
   const startSession = useCallback(
     (initialChar?: string) => {
@@ -133,6 +181,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   useEffect(() => {
     return () => {
       finalizeSession()
+      webSpeechPronunciationProvider.cancel()
       if (errorTimerRef.current !== null) {
         window.clearTimeout(errorTimerRef.current)
       }
@@ -282,6 +331,15 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className={`toggle-button ${autoSpeak ? 'is-active' : ''}`}
+              onClick={() => setAutoSpeak((prev) => !prev)}
+              aria-pressed={autoSpeak}
+              disabled={!isSpeechAvailable}
+            >
+              Auto speak
+            </button>
             <button type="button" className="ghost-button" onClick={handleShowHistory}>
               History
             </button>
@@ -312,6 +370,17 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
         <p className="translation" aria-live="polite" data-testid="translation">
           {translation}
         </p>
+        <div className="pronunciation-controls">
+          <button
+            type="button"
+            className="ghost-button ghost-button--small"
+            onClick={speakCurrentWord}
+            disabled={!isSpeechAvailable}
+            aria-label="Speak current word (Alt+S)"
+          >
+            Speak
+          </button>
+        </div>
         <div className="trainer__meta">
           Word {wordIndex + 1} of {wordOrder.length}
         </div>

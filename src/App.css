@@ -242,6 +242,18 @@
   transition: border-color 200ms ease, color 200ms ease, transform 200ms ease;
 }
 
+.ghost-button--small {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.7rem;
+}
+
+.ghost-button:disabled {
+  border-color: var(--border);
+  color: var(--pending);
+  cursor: not-allowed;
+  transform: none;
+}
+
 .ghost-button:hover {
   border-color: var(--accent);
   color: var(--accent);
@@ -251,6 +263,45 @@
 .ghost-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.toggle-button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease, transform 200ms ease;
+}
+
+.toggle-button.is-active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 8px 18px rgba(47, 111, 106, 0.3);
+  transform: translateY(-1px);
+}
+
+.toggle-button:disabled {
+  border-color: var(--border);
+  color: var(--pending);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.toggle-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pronunciation-controls {
+  display: flex;
+  justify-content: center;
 }
 
 @media (max-width: 540px) {

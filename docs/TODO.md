@@ -17,8 +17,8 @@
 - [x] Implement WPM + accuracy
 - [x] Persist settings + session history
 - [x] Add History screen
-- [ ] US-004 Pronunciation (TTS, Web Speech API)
-- [ ] (Polish) 1-line ellipsis translation
+- [x] US-004 Pronunciation (TTS, Web Speech API)
+- [x] (Polish) 1-line ellipsis translation
 
 ## v1.0
 - [ ] UI polish (zero-distraction)
