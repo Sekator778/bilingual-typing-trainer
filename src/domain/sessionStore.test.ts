@@ -21,13 +21,25 @@ describe('sessionStore', () => {
       accuracy: 0.8,
     }
 
-    const result = appendSession(snapshot)
+    const result = appendSession({
+      ...snapshot,
+      preset: { kind: 'infinite' },
+      outcome: 'completed',
+      level: 'B1',
+      mode: 'normal',
+    })
     expect(result.ok).toBe(true)
 
     const { sessions, available } = loadSessions()
     expect(available).toBe(true)
     expect(sessions).toHaveLength(1)
     expect(typeof sessions[0].id).toBe('string')
-    expect(sessions[0]).toMatchObject(snapshot)
+    expect(sessions[0]).toMatchObject({
+      ...snapshot,
+      preset: { kind: 'infinite' },
+      outcome: 'completed',
+      level: 'B1',
+      mode: 'normal',
+    })
   })
 })

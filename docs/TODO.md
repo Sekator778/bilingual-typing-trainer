@@ -29,7 +29,7 @@
 - [x] US-005 Level selection + word packs
 - [ ] Topics v1.1.1 (pack filtering)
 - [x] US-006 Mistakes-only mode
-- [ ] US-007 Presets (time/word count)
+- [x] US-007 Presets (time/word count)
 
 ## US-010 Offline RU translations (FreeDict)
 

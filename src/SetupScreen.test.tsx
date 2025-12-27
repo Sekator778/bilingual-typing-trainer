@@ -37,6 +37,10 @@ describe('SetupScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /mistakes only/i }))
     fireEvent.click(screen.getByRole('button', { name: /start training/i }))
 
-    expect(onStart).toHaveBeenCalledWith('B1', 'mistakes')
+    expect(onStart).toHaveBeenCalledWith(
+      'B1',
+      'mistakes',
+      expect.objectContaining({ kind: 'infinite' }),
+    )
   })
 })

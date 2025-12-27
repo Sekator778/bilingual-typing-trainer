@@ -7,15 +7,19 @@ import { formatPackLabel, getPackNames, getPackRaw } from './domain/packRegistry
 import type { TrainingMode } from './domain/trainingMode'
 import { TRAINING_MODE_LABELS, TRAINING_MODES } from './domain/trainingMode'
 import { getMistakesForWords } from './domain/mistakesStore'
+import type { Preset, PresetId } from './domain/presets'
+import { getPresetById, getPresetId, PRESET_OPTIONS } from './domain/presets'
+import { getPreset, setPreset } from './domain/presetSettings'
 
 type SetupScreenProps = {
-  onStart: (level: Level, mode: TrainingMode) => void
+  onStart: (level: Level, mode: TrainingMode, preset: Preset) => void
   onShowHistory: () => void
 }
 
 const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
   const [level, setLevel] = useState<Level>(() => getSelectedLevel())
   const [mode, setMode] = useState<TrainingMode>('normal')
+  const [presetId, setPresetId] = useState<PresetId>(() => getPresetId(getPreset()))
   const [warning, setWarning] = useState('')
   const availableLevels = useMemo(() => getPackNames(), [])
   const resolvedLevel = availableLevels.includes(level)
@@ -27,6 +31,9 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
     [packWords],
   )
   const hasMistakes = mistakesForPack.length > 0
+  const resolvedPresetId = PRESET_OPTIONS.some((option) => option.id === presetId)
+    ? presetId
+    : 'infinite'
 
   const handleLevelChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextLevel = event.target.value as Level
@@ -40,6 +47,11 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
     setWarning('')
   }
 
+  const handlePresetChange = (nextPresetId: PresetId) => {
+    setPresetId(nextPresetId)
+    setWarning('')
+  }
+
   const handleStart = () => {
     if (mode === 'mistakes' && !hasMistakes) {
       setWarning('No mistakes recorded yet. Start a normal session first.')
@@ -47,7 +59,9 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
     }
     setWarning('')
     setSelectedLevel(resolvedLevel)
-    onStart(resolvedLevel, mode)
+    const preset = getPresetById(resolvedPresetId)
+    setPreset(preset)
+    onStart(resolvedLevel, mode, preset)
   }
 
   return (
@@ -88,6 +102,24 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
                 aria-pressed={mode === option}
               >
                 {TRAINING_MODE_LABELS[option]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="setup__mode">
+          <span className="setup__label">Session length</span>
+          <div className="preset-toggle" role="group" aria-label="Session length">
+            {PRESET_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`preset-toggle__button ${
+                  resolvedPresetId === option.id ? 'is-active' : ''
+                }`}
+                onClick={() => handlePresetChange(option.id)}
+                aria-pressed={resolvedPresetId === option.id}
+              >
+                {option.label}
               </button>
             ))}
           </div>

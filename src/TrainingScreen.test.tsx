@@ -18,8 +18,10 @@ const renderTrainingScreen = async () => {
     <TrainingScreen
       level="B1"
       mode="normal"
+      preset={{ kind: 'infinite' }}
       onBackToSetup={vi.fn()}
       onShowHistory={vi.fn()}
+      onSessionComplete={vi.fn()}
     />,
   )
 }

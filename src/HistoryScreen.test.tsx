@@ -30,7 +30,13 @@ describe('HistoryScreen', () => {
       accuracy: 0.8,
     }
 
-    appendSession(snapshot)
+    appendSession({
+      ...snapshot,
+      preset: { kind: 'byWords', targetWords: 25 },
+      outcome: 'completed',
+      level: 'B1',
+      mode: 'normal',
+    })
 
     render(<HistoryScreen onBack={vi.fn()} />)
 

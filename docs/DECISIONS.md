@@ -24,6 +24,13 @@
 - A word counts as a mistake once per attempt if any incorrect characters were typed before commit.
 - Mistakes are stored globally but filtered by the active level pack in Mistakes mode.
 
+### Session presets (v1.1)
+- Presets support `byWords` and `byTime` plus `infinite` (default).
+- `byWords` completes when `wordsCompleted >= targetWords`; `byTime` completes when elapsed time meets duration.
+- Completed sessions are marked `completed`; early exits are stored as `interrupted`.
+- Default commit behavior: Enter is required to commit a word.
+- Optional setting (Training settings): auto-advance on exact match, which commits without Enter.
+
 ## Translation strategy (MVP)
 
 - Translation is a dictionary lookup, not a live translator.

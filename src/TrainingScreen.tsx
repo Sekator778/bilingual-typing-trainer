@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { SessionRecordInput } from './domain/sessionStore'
 import { appendSession } from './domain/sessionStore'
 import { loadAutoSpeak, saveAutoSpeak } from './domain/pronunciationSettings'
 import { loadAutoAdvance, saveAutoAdvance } from './domain/trainingSettings'
@@ -12,6 +13,9 @@ import type { TranslationLanguage } from './domain/translationTypes'
 import { recordWordResult } from './domain/mistakesStore'
 import { WordProvider } from './domain/wordProvider'
 import { formatPackLabel } from './domain/packRegistry'
+import type { Preset, SessionOutcome } from './domain/presets'
+import { formatPresetLabel } from './domain/presets'
+import { isPresetCompleteByTime, isPresetCompleteByWords } from './domain/presetUtils'
 import type { TrainingMode } from './domain/trainingMode'
 import { TRAINING_MODE_LABELS } from './domain/trainingMode'
 
@@ -40,15 +44,19 @@ const isFunctionKey = (key: string) => /^F\d+$/.test(key)
 type TrainingScreenProps = {
   level: Level
   mode: TrainingMode
+  preset: Preset
   onBackToSetup: () => void
   onShowHistory: () => void
+  onSessionComplete: (record: SessionRecordInput) => void
 }
 
 const TrainingScreen = ({
   level,
   mode,
+  preset,
   onBackToSetup,
   onShowHistory,
+  onSessionComplete,
 }: TrainingScreenProps) => {
   const [target, setTarget] = useState('')
   const [wordIndex, setWordIndex] = useState(0)
@@ -122,7 +130,7 @@ const TrainingScreen = ({
     statsRef.current = new StatsModule()
     wordErrorsRef.current = 0
     lastSpokenWordRef.current = null
-  }, [level, mode])
+  }, [level, mode, preset])
 
   useEffect(() => {
     saveAutoSpeak(autoSpeak)
@@ -215,33 +223,62 @@ const TrainingScreen = ({
     [target, updateStatsView],
   )
 
-  const finalizeSession = useCallback(() => {
-    if (hasStoredSessionRef.current) {
-      return
+  const persistSession = useCallback(
+    (outcome: SessionOutcome) => {
+      if (hasStoredSessionRef.current) {
+        return null
+      }
+      const stats = statsRef.current
+      if (!stats.hasStarted() || !stats.hasActivity()) {
+        return null
+      }
+      const now = Date.now()
+      stats.stop(now)
+      const record: SessionRecordInput = {
+        ...stats.getSnapshot(now),
+        preset,
+        outcome,
+        level,
+        mode,
+      }
+      appendSession(record)
+      hasStoredSessionRef.current = true
+      return record
+    },
+    [level, mode, preset],
+  )
+
+  const completeSession = useCallback(() => {
+    setIsSessionActive(false)
+    const record = persistSession('completed')
+    if (record) {
+      onSessionComplete(record)
     }
-    const stats = statsRef.current
-    if (!stats.hasStarted() || !stats.hasActivity()) {
-      return
-    }
-    stats.stop()
-    appendSession(stats.getSnapshot())
-    hasStoredSessionRef.current = true
-  }, [])
+  }, [onSessionComplete, persistSession])
+
+  const interruptSession = useCallback(() => {
+    persistSession('interrupted')
+  }, [persistSession])
 
   useEffect(() => {
     return () => {
-      finalizeSession()
+      interruptSession()
       webSpeechPronunciationProvider.cancel()
       if (errorTimerRef.current !== null) {
         window.clearTimeout(errorTimerRef.current)
       }
     }
-  }, [finalizeSession])
+  }, [interruptSession])
 
   const advanceWord = useCallback(() => {
     recordWordResult(target, wordErrorsRef.current)
     statsRef.current.onWordCompleted()
+    const completedWords = statsRef.current.getWordsCompleted()
     updateStatsView()
+    if (isPresetCompleteByWords(preset, completedWords)) {
+      completeSession()
+      return
+    }
     const nextWord = wordProviderRef.current.next()
     setTarget(nextWord.word)
     setWordIndex(nextWord.index)
@@ -250,19 +287,22 @@ const TrainingScreen = ({
     setStatusText('')
     setErrorFlash(false)
     wordErrorsRef.current = 0
-  }, [target, updateStatsView])
+  }, [completeSession, preset, target, updateStatsView])
 
   useEffect(() => {
-    if (!isSessionActive || !autoAdvance) {
+    if (!isSessionActive || preset.kind !== 'byTime') {
       return
     }
-    if (typed.length === 0 || typed.length !== target.length) {
-      return
-    }
-    if (typed === target) {
-      advanceWord()
-    }
-  }, [autoAdvance, isSessionActive, target, typed, advanceWord])
+
+    const interval = window.setInterval(() => {
+      const elapsed = statsRef.current.getDurationMs(Date.now())
+      if (isPresetCompleteByTime(preset, elapsed)) {
+        completeSession()
+      }
+    }, 500)
+
+    return () => window.clearInterval(interval)
+  }, [completeSession, isSessionActive, preset])
 
   const triggerError = useCallback(() => {
     if (errorTimerRef.current !== null) {
@@ -354,7 +394,11 @@ const TrainingScreen = ({
           wordErrorsRef.current += 1
         }
         updateStatsView()
-        setTyped(typed + nextChar)
+        const nextTyped = typed + nextChar
+        setTyped(nextTyped)
+        if (autoAdvance && nextTyped.length === target.length && nextTyped === target) {
+          advanceWord()
+        }
         return
       }
 
@@ -383,14 +427,14 @@ const TrainingScreen = ({
   const { wpm, accuracy, wordsCompleted } = statsView
 
   const handleShowHistory = useCallback(() => {
-    finalizeSession()
+    interruptSession()
     onShowHistory()
-  }, [finalizeSession, onShowHistory])
+  }, [interruptSession, onShowHistory])
 
   const handleBackToSetup = useCallback(() => {
-    finalizeSession()
+    interruptSession()
     onBackToSetup()
-  }, [finalizeSession, onBackToSetup])
+  }, [interruptSession, onBackToSetup])
 
   const handleOpenSettings = useCallback(() => {
     setIsSettingsOpen(true)
@@ -410,6 +454,7 @@ const TrainingScreen = ({
             <p className="trainer__eyebrow">Single-word training</p>
             <p className="trainer__level">Level: {formatPackLabel(level)}</p>
             <p className="trainer__mode">Mode: {TRAINING_MODE_LABELS[mode]}</p>
+            <p className="trainer__preset">Preset: {formatPresetLabel(preset)}</p>
           </div>
           <div className="trainer__actions">
             <div className="language-toggle" role="group" aria-label="Translation language">

@@ -1,12 +1,22 @@
 import type { StatsSnapshot } from './statsModule'
+import type { Preset, SessionOutcome } from './presets'
+import { isPreset } from './presets'
+import type { TrainingMode } from './trainingMode'
 
 export type SessionRecord = StatsSnapshot & {
   id: string
+  preset: Preset
+  outcome: SessionOutcome
+  level?: string
+  mode?: TrainingMode
 }
+
+export type SessionRecordInput = Omit<SessionRecord, 'id'>
 
 const STORAGE_KEY = 'typing.history.v1'
 const MAX_SESSIONS = 50
 const STORAGE_TEST_KEY = 'btt.storageCheck'
+const DEFAULT_PRESET: Preset = { kind: 'infinite' }
 
 const isStorageAvailable = () => {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
@@ -47,6 +57,33 @@ const isSessionRecord = (value: unknown): value is SessionRecord => {
   )
 }
 
+const isOutcome = (value: unknown): value is SessionOutcome =>
+  value === 'completed' || value === 'interrupted'
+
+const isTrainingMode = (value: unknown): value is TrainingMode =>
+  value === 'normal' || value === 'mistakes'
+
+const normalizeSessionRecord = (value: unknown): SessionRecord | null => {
+  if (!isSessionRecord(value)) {
+    return null
+  }
+
+  const record = value as Record<string, unknown>
+  const preset = isPreset(record.preset) ? record.preset : DEFAULT_PRESET
+  const outcome = isOutcome(record.outcome) ? record.outcome : 'completed'
+  const level = typeof record.level === 'string' ? record.level : undefined
+  const mode = isTrainingMode(record.mode) ? record.mode : undefined
+
+  return {
+    ...(record as StatsSnapshot),
+    id: record.id as string,
+    preset,
+    outcome,
+    level,
+    mode,
+  }
+}
+
 const createSessionId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
@@ -75,7 +112,9 @@ const safeRead = (): { sessions: SessionRecord[]; available: boolean } => {
     if (!Array.isArray(parsed)) {
       return { sessions: [], available: true }
     }
-    const sessions = parsed.filter(isSessionRecord)
+    const sessions = parsed
+      .map((item) => normalizeSessionRecord(item))
+      .filter((item): item is SessionRecord => item !== null)
     return { sessions, available: true }
   } catch {
     return { sessions: [], available: true }
@@ -85,7 +124,7 @@ const safeRead = (): { sessions: SessionRecord[]; available: boolean } => {
 export const loadSessions = () => safeRead()
 
 export const appendSession = (
-  snapshot: StatsSnapshot,
+  snapshot: SessionRecordInput,
 ): { ok: boolean; sessions: SessionRecord[] } => {
   if (!isStorageAvailable()) {
     return { ok: false, sessions: [] }
