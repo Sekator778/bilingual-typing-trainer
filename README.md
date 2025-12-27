@@ -1,4 +1,4 @@
-## README.md (готовый текст)
+![CI](https://github.com/Sekator778/bilingual-typing-trainer/actions/workflows/ci.yml/badge.svg)
 
 ````md
 # Bilingual Typing Trainer
