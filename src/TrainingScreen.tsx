@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import wordListRaw from './data/raw/google-10000-english.txt?raw'
+import { localTranslationProvider } from './domain/translationProvider'
+import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
+import type { TranslationLanguage } from './domain/translationTypes'
 import { parseWordList } from './domain/wordList'
 
 const WORD_LIST = parseWordList(wordListRaw)
@@ -14,6 +17,11 @@ const shuffleWords = (words: string[]) => {
 }
 
 const ERROR_DISPLAY_MS = 700
+const LANGUAGE_OPTIONS: Array<{ code: TranslationLanguage; label: string }> = [
+  { code: 'ua', label: 'UA' },
+  { code: 'ru', label: 'RU' },
+  { code: 'de', label: 'DE' },
+]
 
 type CharState = 'correct' | 'incorrect' | 'pending'
 
@@ -31,6 +39,9 @@ const isFunctionKey = (key: string) => /^F\d+$/.test(key)
 const TrainingScreen = () => {
   const [wordIndex, setWordIndex] = useState(0)
   const [wordOrder, setWordOrder] = useState(() => shuffleWords(WORD_LIST))
+  const [language, setLanguage] = useState<TranslationLanguage>(() =>
+    loadTranslationLanguage(),
+  )
   const [typed, setTyped] = useState('')
   const [statusText, setStatusText] = useState('')
   const [errorFlash, setErrorFlash] = useState(false)
@@ -39,10 +50,17 @@ const TrainingScreen = () => {
 
   const target = wordOrder[wordIndex % wordOrder.length]
   const targetLetters = useMemo(() => target.split(''), [target])
+  const translation = useMemo(() => {
+    return localTranslationProvider.getTranslation(target, language)
+  }, [language, target])
 
   useEffect(() => {
     inputRef.current?.focus()
   }, [wordIndex])
+
+  useEffect(() => {
+    saveTranslationLanguage(language)
+  }, [language])
 
   useEffect(() => {
     return () => {
@@ -64,7 +82,7 @@ const TrainingScreen = () => {
     setTyped('')
     setStatusText('')
     setErrorFlash(false)
-  }, [])
+  }, [wordOrder.length])
 
   const triggerError = useCallback(() => {
     if (errorTimerRef.current !== null) {
@@ -128,7 +146,24 @@ const TrainingScreen = () => {
   return (
     <div className="trainer">
       <header className="trainer__header">
-        <p className="trainer__eyebrow">Single-word training</p>
+        <div className="trainer__toolbar">
+          <p className="trainer__eyebrow">Single-word training</p>
+          <div className="language-toggle" role="group" aria-label="Translation language">
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.code}
+                type="button"
+                className={`language-toggle__button ${
+                  language === option.code ? 'is-active' : ''
+                }`}
+                onClick={() => setLanguage(option.code)}
+                aria-pressed={language === option.code}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <h1 className="trainer__title">Type the word exactly</h1>
         <p className="trainer__subhead">
           Press Enter to advance when every letter is correct.
@@ -146,6 +181,9 @@ const TrainingScreen = () => {
             )
           })}
         </div>
+        <p className="translation" aria-live="polite" data-testid="translation">
+          {translation}
+        </p>
         <div className="trainer__meta">
           Word {wordIndex + 1} of {wordOrder.length}
         </div>
