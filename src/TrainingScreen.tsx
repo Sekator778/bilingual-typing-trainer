@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { appendSession } from './domain/sessionStore'
 import { loadAutoSpeak, saveAutoSpeak } from './domain/pronunciationSettings'
+import { loadAutoAdvance, saveAutoAdvance } from './domain/trainingSettings'
 import type { Level } from './domain/levels'
 import { StatsModule } from './domain/statsModule'
 import { loadTranslationBundle } from './domain/translationBundle'
@@ -8,8 +9,11 @@ import { webSpeechPronunciationProvider } from './domain/webSpeechPronunciationP
 import { localTranslationProvider } from './domain/translationProvider'
 import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
 import type { TranslationLanguage } from './domain/translationTypes'
+import { recordWordResult } from './domain/mistakesStore'
 import { WordProvider } from './domain/wordProvider'
 import { formatPackLabel } from './domain/packRegistry'
+import type { TrainingMode } from './domain/trainingMode'
+import { TRAINING_MODE_LABELS } from './domain/trainingMode'
 
 const ERROR_DISPLAY_MS = 700
 const STATS_TICK_MS = 1000
@@ -35,11 +39,17 @@ const isFunctionKey = (key: string) => /^F\d+$/.test(key)
 
 type TrainingScreenProps = {
   level: Level
+  mode: TrainingMode
   onBackToSetup: () => void
   onShowHistory: () => void
 }
 
-const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenProps) => {
+const TrainingScreen = ({
+  level,
+  mode,
+  onBackToSetup,
+  onShowHistory,
+}: TrainingScreenProps) => {
   const [target, setTarget] = useState('')
   const [wordIndex, setWordIndex] = useState(0)
   const [wordTotal, setWordTotal] = useState(0)
@@ -48,10 +58,12 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
     loadTranslationLanguage(),
   )
   const [autoSpeak, setAutoSpeak] = useState(() => loadAutoSpeak())
+  const [autoAdvance, setAutoAdvance] = useState(() => loadAutoAdvance())
   const [typed, setTyped] = useState('')
   const [statusText, setStatusText] = useState('')
   const [errorFlash, setErrorFlash] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [, setBundleVersion] = useState(0)
   const [statsView, setStatsView] = useState({
     wpm: 0,
@@ -60,6 +72,7 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
   })
   const inputRef = useRef<HTMLInputElement>(null)
   const errorTimerRef = useRef<number | null>(null)
+  const wordErrorsRef = useRef(0)
   const statsRef = useRef(new StatsModule())
   const hasStoredSessionRef = useRef(false)
   const lastSpokenWordRef = useRef<string | null>(null)
@@ -95,7 +108,7 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
 
   useEffect(() => {
     const provider = wordProviderRef.current
-    const status = provider.init({ level })
+    const status = provider.init({ level, mode })
     const nextWord = provider.next()
     setTarget(nextWord.word)
     setWordIndex(nextWord.index)
@@ -107,12 +120,17 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
     setErrorFlash(false)
     setStatsView({ wpm: 0, accuracy: 0, wordsCompleted: 0 })
     statsRef.current = new StatsModule()
+    wordErrorsRef.current = 0
     lastSpokenWordRef.current = null
-  }, [level])
+  }, [level, mode])
 
   useEffect(() => {
     saveAutoSpeak(autoSpeak)
   }, [autoSpeak])
+
+  useEffect(() => {
+    saveAutoAdvance(autoAdvance)
+  }, [autoAdvance])
 
   const updateStatsView = useCallback((now = Date.now()) => {
     const stats = statsRef.current
@@ -182,10 +200,14 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
       setTyped(initialChar ?? '')
       setStatusText('')
       setErrorFlash(false)
+      wordErrorsRef.current = 0
 
       if (initialChar) {
         const isCorrect = initialChar === target[0]
         statsRef.current.onCharTyped(isCorrect)
+        if (!isCorrect) {
+          wordErrorsRef.current += 1
+        }
       }
 
       updateStatsView(now)
@@ -217,6 +239,7 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
   }, [finalizeSession])
 
   const advanceWord = useCallback(() => {
+    recordWordResult(target, wordErrorsRef.current)
     statsRef.current.onWordCompleted()
     updateStatsView()
     const nextWord = wordProviderRef.current.next()
@@ -226,7 +249,20 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
     setTyped('')
     setStatusText('')
     setErrorFlash(false)
-  }, [updateStatsView])
+    wordErrorsRef.current = 0
+  }, [target, updateStatsView])
+
+  useEffect(() => {
+    if (!isSessionActive || !autoAdvance) {
+      return
+    }
+    if (typed.length === 0 || typed.length !== target.length) {
+      return
+    }
+    if (typed === target) {
+      advanceWord()
+    }
+  }, [autoAdvance, isSessionActive, target, typed, advanceWord])
 
   const triggerError = useCallback(() => {
     if (errorTimerRef.current !== null) {
@@ -247,6 +283,15 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
       }
 
       const { key } = event
+
+      if (isSettingsOpen) {
+        event.preventDefault()
+        if (key === 'Escape') {
+          setIsSettingsOpen(false)
+          inputRef.current?.focus()
+        }
+        return
+      }
 
       if (!isSessionActive) {
         if (key === ' ') {
@@ -275,6 +320,9 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
 
       if (key === 'Enter') {
         event.preventDefault()
+        if (autoAdvance && typed.length === target.length && typed === target) {
+          return
+        }
         if (typed.length === target.length && typed === target) {
           advanceWord()
         } else {
@@ -302,6 +350,9 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
         const nextChar = key.toLowerCase()
         const isCorrect = nextChar === target[typed.length]
         statsRef.current.onCharTyped(isCorrect)
+        if (!isCorrect) {
+          wordErrorsRef.current += 1
+        }
         updateStatsView()
         setTyped(typed + nextChar)
         return
@@ -318,7 +369,9 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
     },
     [
       advanceWord,
+      autoAdvance,
       isSessionActive,
+      isSettingsOpen,
       startSession,
       target,
       triggerError,
@@ -339,6 +392,16 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
     onBackToSetup()
   }, [finalizeSession, onBackToSetup])
 
+  const handleOpenSettings = useCallback(() => {
+    setIsSettingsOpen(true)
+    inputRef.current?.blur()
+  }, [])
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false)
+    inputRef.current?.focus()
+  }, [])
+
   return (
     <div className="trainer">
       <header className="trainer__header">
@@ -346,6 +409,7 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
           <div className="trainer__intro">
             <p className="trainer__eyebrow">Single-word training</p>
             <p className="trainer__level">Level: {formatPackLabel(level)}</p>
+            <p className="trainer__mode">Mode: {TRAINING_MODE_LABELS[mode]}</p>
           </div>
           <div className="trainer__actions">
             <div className="language-toggle" role="group" aria-label="Translation language">
@@ -372,6 +436,9 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
             >
               Auto speak
             </button>
+            <button type="button" className="ghost-button" onClick={handleOpenSettings}>
+              Settings
+            </button>
             <button type="button" className="ghost-button" onClick={handleBackToSetup}>
               Change level
             </button>
@@ -382,7 +449,9 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
         </div>
         <h1 className="trainer__title">Type the word exactly</h1>
         <p className="trainer__subhead">
-          Press Enter to advance when every letter is correct.
+          {autoAdvance
+            ? 'Words advance automatically when correct.'
+            : 'Press Enter to advance when every letter is correct.'}
         </p>
         {isFallbackPack && (
           <p className="trainer__notice">
@@ -462,6 +531,34 @@ const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenP
           </div>
         </div>
       </section>
+
+      {isSettingsOpen && (
+        <div className="settings-overlay" role="dialog" aria-modal="true">
+          <div className="settings-panel">
+            <div className="settings-panel__header">
+              <div>
+                <p className="settings-panel__eyebrow">Settings</p>
+                <h2 className="settings-panel__title">Session preferences</h2>
+              </div>
+              <button
+                type="button"
+                className="ghost-button ghost-button--small"
+                onClick={handleCloseSettings}
+              >
+                Close
+              </button>
+            </div>
+            <label className="settings-toggle">
+              <span>Auto-advance on correct word</span>
+              <input
+                type="checkbox"
+                checked={autoAdvance}
+                onChange={(event) => setAutoAdvance(event.target.checked)}
+              />
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

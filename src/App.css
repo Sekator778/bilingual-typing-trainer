@@ -49,6 +49,12 @@
   color: var(--muted);
 }
 
+.trainer__mode {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .trainer__title {
   font-family: 'Fraunces', 'Times New Roman', serif;
   font-size: clamp(2rem, 3vw, 2.8rem);
@@ -209,6 +215,66 @@
   font-size: 0.95rem;
   color: var(--ink);
   font-weight: 600;
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 42, 40, 0.28);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  z-index: 10;
+}
+
+.settings-panel {
+  width: min(520px, 92vw);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.6rem;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1.2rem;
+}
+
+.settings-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-panel__eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.settings-panel__title {
+  margin: 0.2rem 0 0;
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-size: 1.4rem;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: var(--bg-strong);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.settings-toggle input {
+  width: 18px;
+  height: 18px;
 }
 
 .language-toggle {

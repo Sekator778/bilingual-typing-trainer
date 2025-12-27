@@ -3,7 +3,8 @@ import type { Level } from './levels'
 type PackRegistry = Record<Level, string>
 
 const packModules = import.meta.glob('../data/packs/*.txt', {
-  as: 'raw',
+  query: '?raw',
+  import: 'default',
   eager: true,
 })
 

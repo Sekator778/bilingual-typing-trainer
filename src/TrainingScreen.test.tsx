@@ -15,7 +15,12 @@ afterEach(() => {
 const renderTrainingScreen = async () => {
   const { default: TrainingScreen } = await import('./TrainingScreen')
   return render(
-    <TrainingScreen level="B1" onBackToSetup={vi.fn()} onShowHistory={vi.fn()} />,
+    <TrainingScreen
+      level="B1"
+      mode="normal"
+      onBackToSetup={vi.fn()}
+      onShowHistory={vi.fn()}
+    />,
   )
 }
 

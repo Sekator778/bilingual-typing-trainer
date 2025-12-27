@@ -1,35 +1,53 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import './SetupScreen.css'
 import type { Level } from './domain/levels'
 import { getSelectedLevel, setSelectedLevel } from './domain/levelSettings'
-import { formatPackLabel, getPackNames } from './domain/packRegistry'
+import { parsePack } from './domain/packLoader'
+import { formatPackLabel, getPackNames, getPackRaw } from './domain/packRegistry'
+import type { TrainingMode } from './domain/trainingMode'
+import { TRAINING_MODE_LABELS, TRAINING_MODES } from './domain/trainingMode'
+import { getMistakesForWords } from './domain/mistakesStore'
 
 type SetupScreenProps = {
-  onStart: (level: Level) => void
+  onStart: (level: Level, mode: TrainingMode) => void
   onShowHistory: () => void
 }
 
 const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
   const [level, setLevel] = useState<Level>(() => getSelectedLevel())
+  const [mode, setMode] = useState<TrainingMode>('normal')
+  const [warning, setWarning] = useState('')
   const availableLevels = useMemo(() => getPackNames(), [])
-
-  useEffect(() => {
-    if (availableLevels.length === 0 || availableLevels.includes(level)) {
-      return
-    }
-    setLevel(availableLevels[0])
-    setSelectedLevel(availableLevels[0])
-  }, [availableLevels, level])
+  const resolvedLevel = availableLevels.includes(level)
+    ? level
+    : availableLevels[0] ?? level
+  const packWords = useMemo(() => parsePack(getPackRaw(resolvedLevel)), [resolvedLevel])
+  const mistakesForPack = useMemo(
+    () => getMistakesForWords(packWords),
+    [packWords],
+  )
+  const hasMistakes = mistakesForPack.length > 0
 
   const handleLevelChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextLevel = event.target.value as Level
     setLevel(nextLevel)
     setSelectedLevel(nextLevel)
+    setWarning('')
+  }
+
+  const handleModeChange = (nextMode: TrainingMode) => {
+    setMode(nextMode)
+    setWarning('')
   }
 
   const handleStart = () => {
-    setSelectedLevel(level)
-    onStart(level)
+    if (mode === 'mistakes' && !hasMistakes) {
+      setWarning('No mistakes recorded yet. Start a normal session first.')
+      return
+    }
+    setWarning('')
+    setSelectedLevel(resolvedLevel)
+    onStart(resolvedLevel, mode)
   }
 
   return (
@@ -49,7 +67,7 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
         <select
           id="level-select"
           className="setup__select"
-          value={level}
+          value={resolvedLevel}
           onChange={handleLevelChange}
         >
           {availableLevels.map((option) => (
@@ -58,6 +76,27 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
             </option>
           ))}
         </select>
+        <div className="setup__mode">
+          <span className="setup__label">Mode</span>
+          <div className="mode-toggle" role="group" aria-label="Training mode">
+            {TRAINING_MODES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`mode-toggle__button ${mode === option ? 'is-active' : ''}`}
+                onClick={() => handleModeChange(option)}
+                aria-pressed={mode === option}
+              >
+                {TRAINING_MODE_LABELS[option]}
+              </button>
+            ))}
+          </div>
+        </div>
+        {warning && (
+          <p className="setup__warning" role="status">
+            {warning}
+          </p>
+        )}
         <div className="setup__actions">
           <button type="button" className="primary-button" onClick={handleStart}>
             Start training

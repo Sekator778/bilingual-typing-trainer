@@ -20,6 +20,10 @@
 - Default level is `B1`, stored in localStorage (`typing.level.v1`).
 - Empty/invalid packs fall back to a small safe list with a lightweight UI notice.
 
+### Mistakes-only mode (v1.1)
+- A word counts as a mistake once per attempt if any incorrect characters were typed before commit.
+- Mistakes are stored globally but filtered by the active level pack in Mistakes mode.
+
 ## Translation strategy (MVP)
 
 - Translation is a dictionary lookup, not a live translator.

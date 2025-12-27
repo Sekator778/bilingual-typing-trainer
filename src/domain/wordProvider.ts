@@ -1,9 +1,13 @@
 import type { Level } from './levels'
+import type { TrainingMode } from './trainingMode'
+import type { WordMistakeStats } from './mistakesStore'
+import { getMistakesForWords } from './mistakesStore'
 import type { PackResult } from './packLoader'
 import { loadPack } from './packLoader'
 
 export type WordSource = {
   level: Level
+  mode: TrainingMode
 }
 
 export type WordResult = {
@@ -14,11 +18,14 @@ export type WordResult = {
 
 export type WordProviderStatus = {
   level: Level
+  mode: TrainingMode
   isFallback: boolean
   total: number
+  isEmpty: boolean
 }
 
 type PackLoader = (level: Level) => PackResult
+type MistakesSelector = (words: string[]) => Array<{ word: string; stats: WordMistakeStats }>
 
 const shuffleWords = (words: string[]) => {
   const shuffled = [...words]
@@ -31,25 +38,44 @@ const shuffleWords = (words: string[]) => {
 
 export class WordProvider {
   private readonly loader: PackLoader
+  private readonly selectMistakes: MistakesSelector
   private words: string[] = []
   private cursor = 0
   private level: Level | null = null
   private isFallback = false
+  private mode: TrainingMode = 'normal'
+  private isEmpty = false
 
-  constructor(loader: PackLoader = loadPack) {
+  constructor(loader: PackLoader = loadPack, selectMistakes: MistakesSelector = getMistakesForWords) {
     this.loader = loader
+    this.selectMistakes = selectMistakes
   }
 
   init(source: WordSource): WordProviderStatus {
     const { words, isFallback } = this.loader(source.level)
-    this.words = shuffleWords(words)
+    let nextWords = words
+    let isEmpty = false
+
+    if (source.mode === 'mistakes') {
+      const mistakes = this.selectMistakes(words)
+      nextWords = mistakes.map((entry) => entry.word)
+      isEmpty = nextWords.length === 0
+    } else {
+      nextWords = shuffleWords(words)
+    }
+
+    this.words = nextWords
     this.cursor = 0
     this.level = source.level
     this.isFallback = isFallback
+    this.mode = source.mode
+    this.isEmpty = isEmpty
     return {
       level: source.level,
+      mode: source.mode,
       isFallback,
       total: this.words.length,
+      isEmpty,
     }
   }
 
@@ -58,7 +84,9 @@ export class WordProvider {
       return { word: '', index: 0, total: 0 }
     }
     if (this.cursor >= this.words.length) {
-      this.words = shuffleWords(this.words)
+      if (this.mode === 'normal') {
+        this.words = shuffleWords(this.words)
+      }
       this.cursor = 0
     }
     const word = this.words[this.cursor]
@@ -73,8 +101,10 @@ export class WordProvider {
     }
     return {
       level: this.level,
+      mode: this.mode,
       isFallback: this.isFallback,
       total: this.words.length,
+      isEmpty: this.isEmpty,
     }
   }
 }

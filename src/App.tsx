@@ -4,6 +4,7 @@ import HistoryScreen from './HistoryScreen'
 import SetupScreen from './SetupScreen'
 import TrainingScreen from './TrainingScreen'
 import { getSelectedLevel } from './domain/levelSettings'
+import type { TrainingMode } from './domain/trainingMode'
 
 type Route = 'setup' | 'train' | 'history'
 
@@ -31,6 +32,7 @@ function App() {
   const [route, setRoute] = useState<Route>(() =>
     getRouteFromPath(window.location.pathname),
   )
+  const [trainingMode, setTrainingMode] = useState<TrainingMode>('normal')
 
   const navigate = useCallback((nextRoute: Route) => {
     const path = routeToPath(nextRoute)
@@ -54,6 +56,7 @@ function App() {
     return (
       <TrainingScreen
         level={getSelectedLevel()}
+        mode={trainingMode}
         onBackToSetup={() => navigate('setup')}
         onShowHistory={() => navigate('history')}
       />
@@ -62,7 +65,10 @@ function App() {
 
   return (
     <SetupScreen
-      onStart={() => navigate('train')}
+      onStart={(_, mode) => {
+        setTrainingMode(mode)
+        navigate('train')
+      }}
       onShowHistory={() => navigate('history')}
     />
   )
