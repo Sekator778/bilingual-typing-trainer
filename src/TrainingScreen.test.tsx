@@ -2,8 +2,10 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TRANSLATION_PLACEHOLDER } from './domain/translationProvider'
 
-vi.mock('./data/raw/google-10000-english.txt?raw', () => ({
-  default: 'untranslated\n',
+vi.mock('./domain/packRegistry', () => ({
+  getPackNames: () => ['B1'],
+  getPackRaw: (level: string) => (level === 'B1' ? 'untranslated\n' : ''),
+  formatPackLabel: (level: string) => level,
 }))
 
 afterEach(() => {
@@ -12,7 +14,9 @@ afterEach(() => {
 
 const renderTrainingScreen = async () => {
   const { default: TrainingScreen } = await import('./TrainingScreen')
-  return render(<TrainingScreen onShowHistory={vi.fn()} />)
+  return render(
+    <TrainingScreen level="B1" onBackToSetup={vi.fn()} onShowHistory={vi.fn()} />,
+  )
 }
 
 describe('TrainingScreen', () => {

@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import wordListRaw from './data/raw/google-10000-english.txt?raw'
 import { appendSession } from './domain/sessionStore'
 import { loadAutoSpeak, saveAutoSpeak } from './domain/pronunciationSettings'
+import type { Level } from './domain/levels'
 import { StatsModule } from './domain/statsModule'
 import { loadTranslationBundle } from './domain/translationBundle'
 import { webSpeechPronunciationProvider } from './domain/webSpeechPronunciationProvider'
 import { localTranslationProvider } from './domain/translationProvider'
 import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
 import type { TranslationLanguage } from './domain/translationTypes'
-import { parseWordList } from './domain/wordList'
-
-const WORD_LIST = parseWordList(wordListRaw)
-
-const shuffleWords = (words: string[]) => {
-  const shuffled = [...words]
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
-}
+import { WordProvider } from './domain/wordProvider'
+import { formatPackLabel } from './domain/packRegistry'
 
 const ERROR_DISPLAY_MS = 700
 const STATS_TICK_MS = 1000
@@ -38,17 +28,22 @@ const getCharState = (target: string, typed: string, index: number): CharState =
   return typed[index] === target[index] ? 'correct' : 'incorrect'
 }
 
-const isLetter = (key: string) => /^[a-zA-Z]$/.test(key)
+const isStartChar = (key: string) => /^[a-zA-Z]$/.test(key)
+const isWordChar = (key: string) => /^[a-zA-Z'-]$/.test(key)
 
 const isFunctionKey = (key: string) => /^F\d+$/.test(key)
 
 type TrainingScreenProps = {
+  level: Level
+  onBackToSetup: () => void
   onShowHistory: () => void
 }
 
-const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
+const TrainingScreen = ({ level, onBackToSetup, onShowHistory }: TrainingScreenProps) => {
+  const [target, setTarget] = useState('')
   const [wordIndex, setWordIndex] = useState(0)
-  const [wordOrder, setWordOrder] = useState(() => shuffleWords(WORD_LIST))
+  const [wordTotal, setWordTotal] = useState(0)
+  const [isFallbackPack, setIsFallbackPack] = useState(false)
   const [language, setLanguage] = useState<TranslationLanguage>(() =>
     loadTranslationLanguage(),
   )
@@ -68,8 +63,8 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const statsRef = useRef(new StatsModule())
   const hasStoredSessionRef = useRef(false)
   const lastSpokenWordRef = useRef<string | null>(null)
+  const wordProviderRef = useRef(new WordProvider())
 
-  const target = wordOrder[wordIndex % wordOrder.length]
   const targetLetters = useMemo(() => target.split(''), [target])
   const translation = localTranslationProvider.getTranslation(target, language)
   const isSpeechAvailable = webSpeechPronunciationProvider.isAvailable()
@@ -97,6 +92,23 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    const provider = wordProviderRef.current
+    const status = provider.init({ level })
+    const nextWord = provider.next()
+    setTarget(nextWord.word)
+    setWordIndex(nextWord.index)
+    setWordTotal(nextWord.total)
+    setIsFallbackPack(status.isFallback)
+    setIsSessionActive(false)
+    setTyped('')
+    setStatusText('')
+    setErrorFlash(false)
+    setStatsView({ wpm: 0, accuracy: 0, wordsCompleted: 0 })
+    statsRef.current = new StatsModule()
+    lastSpokenWordRef.current = null
+  }, [level])
 
   useEffect(() => {
     saveAutoSpeak(autoSpeak)
@@ -207,18 +219,14 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const advanceWord = useCallback(() => {
     statsRef.current.onWordCompleted()
     updateStatsView()
-    setWordIndex((prev) => {
-      const nextIndex = prev + 1
-      if (nextIndex >= wordOrder.length) {
-        setWordOrder(shuffleWords(WORD_LIST))
-        return 0
-      }
-      return nextIndex
-    })
+    const nextWord = wordProviderRef.current.next()
+    setTarget(nextWord.word)
+    setWordIndex(nextWord.index)
+    setWordTotal(nextWord.total)
     setTyped('')
     setStatusText('')
     setErrorFlash(false)
-  }, [updateStatsView, wordOrder.length])
+  }, [updateStatsView])
 
   const triggerError = useCallback(() => {
     if (errorTimerRef.current !== null) {
@@ -247,7 +255,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
           return
         }
 
-        if (isLetter(key)) {
+        if (isStartChar(key)) {
           event.preventDefault()
           const nextChar = key.toLowerCase()
           startSession(nextChar)
@@ -286,7 +294,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
         return
       }
 
-      if (isLetter(key)) {
+      if (isWordChar(key)) {
         event.preventDefault()
         if (typed.length >= target.length) {
           return
@@ -326,11 +334,19 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
     onShowHistory()
   }, [finalizeSession, onShowHistory])
 
+  const handleBackToSetup = useCallback(() => {
+    finalizeSession()
+    onBackToSetup()
+  }, [finalizeSession, onBackToSetup])
+
   return (
     <div className="trainer">
       <header className="trainer__header">
         <div className="trainer__toolbar">
-          <p className="trainer__eyebrow">Single-word training</p>
+          <div className="trainer__intro">
+            <p className="trainer__eyebrow">Single-word training</p>
+            <p className="trainer__level">Level: {formatPackLabel(level)}</p>
+          </div>
           <div className="trainer__actions">
             <div className="language-toggle" role="group" aria-label="Translation language">
               {LANGUAGE_OPTIONS.map((option) => (
@@ -356,6 +372,9 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
             >
               Auto speak
             </button>
+            <button type="button" className="ghost-button" onClick={handleBackToSetup}>
+              Change level
+            </button>
             <button type="button" className="ghost-button" onClick={handleShowHistory}>
               History
             </button>
@@ -365,6 +384,11 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
         <p className="trainer__subhead">
           Press Enter to advance when every letter is correct.
         </p>
+        {isFallbackPack && (
+          <p className="trainer__notice">
+            Pack unavailable. Using fallback words.
+          </p>
+        )}
       </header>
 
       <section className="trainer__word" aria-live="polite">
@@ -373,7 +397,10 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
             <span className="session-overlay__content">Press Space to start</span>
           </div>
         )}
-        <div className={`word ${errorFlash ? 'word--shake' : ''}`}>
+        <div
+          className={`word ${errorFlash ? 'word--shake' : ''}`}
+          data-testid="target-word"
+        >
           {targetLetters.map((letter, index) => {
             const state = getCharState(target, typed, index)
             return (
@@ -398,7 +425,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
           </button>
         </div>
         <div className="trainer__meta">
-          Word {wordIndex + 1} of {wordOrder.length}
+          Word {wordIndex} of {wordTotal}
         </div>
       </section>
 

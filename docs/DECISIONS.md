@@ -13,12 +13,13 @@
 - Pronunciation uses Web Speech API; auto-speak default OFF and stored in localStorage (`btt.autoSpeak`)
 - Shortcut for speak: Alt+S (Option+S on macOS)
 
-### Technical Notes (MVP)
-- Words for training are loaded from a local static dictionary file
-  (`google-10000-english.txt` or derivative).
-- Words are treated as lowercase English alphabet strings (`a–z`).
-- Word order may be sequential or randomized for MVP.
-- 
+### Word packs (v1.1)
+- Training words come from level-specific packs in `src/data/packs/*.txt`.
+- Pack format is one word per line, lowercase `a-z` (parser normalizes, filters, and deduplicates).
+- WordProvider shuffles the pack, serves words sequentially, and reshuffles after exhaustion.
+- Default level is `B1`, stored in localStorage (`typing.level.v1`).
+- Empty/invalid packs fall back to a small safe list with a lightweight UI notice.
+
 ## Translation strategy (MVP)
 
 - Translation is a dictionary lookup, not a live translator.

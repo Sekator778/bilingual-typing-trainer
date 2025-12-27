@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { FALLBACK_WORDS, parseWordList } from './wordList'
 
 describe('parseWordList', () => {
-  it('filters only a-z and lowercases', () => {
-    const raw = 'Gym\nco-op\nhello2\nOK\n  bank  \n\n'
+  it('filters invalid words and lowercases', () => {
+    const raw = "Gym\nco-op\ncan't\nhello2\nOK\n  bank  \n\n"
     const result = parseWordList(raw)
-    expect(result).toEqual(['gym', 'ok', 'bank'])
+    expect(result).toEqual(['gym', 'co-op', "can't", 'ok', 'bank'])
   })
 
   it('removes empty lines', () => {
@@ -15,7 +15,7 @@ describe('parseWordList', () => {
   })
 
   it('falls back when input has no valid words', () => {
-    const raw = '123\nco-op\n\n'
+    const raw = '123\nco op\n\n'
     const result = parseWordList(raw)
     expect(result).toEqual(FALLBACK_WORDS)
   })

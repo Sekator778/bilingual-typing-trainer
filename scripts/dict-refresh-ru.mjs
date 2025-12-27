@@ -5,6 +5,7 @@ import process from 'node:process'
 
 const ENV_PATH = path.resolve(process.cwd(), '.env.local')
 const WORD_LIST_PATH = path.resolve('src/data/raw/google-10000-english.txt')
+const PACKS_DIR = path.resolve('src/data/packs')
 const BUNDLE_PATH = path.resolve('public/translations.v1.json')
 const CACHE_DIR = path.resolve('tools/cache')
 const CACHE_PATH = path.join(CACHE_DIR, 'deepl-ru-cache.json')
@@ -46,11 +47,38 @@ const parseWordList = (raw) => {
   const seen = new Set()
   for (const line of raw.split(/\r?\n/)) {
     const normalized = line.trim().toLowerCase()
-    if (!normalized || !/^[a-z]+$/.test(normalized) || seen.has(normalized)) {
+    if (
+      !normalized ||
+      !/^[a-z]+(?:[-'][a-z]+)*$/.test(normalized) ||
+      seen.has(normalized)
+    ) {
       continue
     }
     seen.add(normalized)
     words.push(normalized)
+  }
+  return words
+}
+
+const loadPackWords = () => {
+  if (!fs.existsSync(PACKS_DIR)) {
+    return []
+  }
+  const entries = fs
+    .readdirSync(PACKS_DIR)
+    .filter((fileName) => fileName.endsWith('.txt'))
+    .sort()
+  const words = []
+  const seen = new Set()
+  for (const fileName of entries) {
+    const content = fs.readFileSync(path.join(PACKS_DIR, fileName), 'utf8')
+    for (const word of parseWordList(content)) {
+      if (seen.has(word)) {
+        continue
+      }
+      seen.add(word)
+      words.push(word)
+    }
   }
   return words
 }
@@ -155,8 +183,15 @@ const main = async () => {
     throw new Error(`Bundle not found: ${BUNDLE_PATH}`)
   }
 
-  const words = parseWordList(fs.readFileSync(WORD_LIST_PATH, 'utf8'))
+  const baseWords = parseWordList(fs.readFileSync(WORD_LIST_PATH, 'utf8'))
+  const baseWordSet = new Set(baseWords)
+  const packWords = loadPackWords()
+  const extraWords = packWords.filter((word) => !baseWordSet.has(word))
+  const words = [...baseWords, ...extraWords]
   const wordSet = new Set(words)
+  console.log(
+    `Word sets: base ${baseWords.length}, pack extras ${extraWords.length}, total ${words.length}`,
+  )
 
   const rawBundle = readJson(BUNDLE_PATH, {})
   const bundle = {}

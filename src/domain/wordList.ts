@@ -6,7 +6,11 @@ export const parseWordList = (raw: string): string[] => {
 
   for (const line of raw.split(/\r?\n/)) {
     const normalized = line.trim().toLowerCase()
-    if (!normalized || !/^[a-z]+$/.test(normalized) || seen.has(normalized)) {
+    if (
+      !normalized ||
+      !/^[a-z]+(?:[-'][a-z]+)*$/.test(normalized) ||
+      seen.has(normalized)
+    ) {
       continue
     }
     seen.add(normalized)

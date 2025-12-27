@@ -13,6 +13,7 @@ const WORD_LIST_PATH = path.join(
   'raw',
   'google-10000-english.txt',
 )
+const PACKS_DIR = path.join(repoRoot, 'src', 'data', 'packs')
 const DICT_DIR = path.join(repoRoot, 'tools', 'dicts', 'eng-rus', 'eng-rus')
 const IDX_PATH = path.join(DICT_DIR, 'eng-rus.idx.gz')
 const DICT_PATH = path.join(DICT_DIR, 'eng-rus.dict.dz')
@@ -24,11 +25,38 @@ const parseWordList = (raw) => {
   const seen = new Set()
   for (const line of raw.split(/\r?\n/)) {
     const normalized = line.trim().toLowerCase()
-    if (!normalized || !/^[a-z]+$/.test(normalized) || seen.has(normalized)) {
+    if (
+      !normalized ||
+      !/^[a-z]+(?:[-'][a-z]+)*$/.test(normalized) ||
+      seen.has(normalized)
+    ) {
       continue
     }
     seen.add(normalized)
     words.push(normalized)
+  }
+  return words
+}
+
+const loadPackWords = () => {
+  if (!fs.existsSync(PACKS_DIR)) {
+    return []
+  }
+  const entries = fs
+    .readdirSync(PACKS_DIR)
+    .filter((fileName) => fileName.endsWith('.txt'))
+    .sort()
+  const words = []
+  const seen = new Set()
+  for (const fileName of entries) {
+    const content = fs.readFileSync(path.join(PACKS_DIR, fileName), 'utf8')
+    for (const word of parseWordList(content)) {
+      if (seen.has(word)) {
+        continue
+      }
+      seen.add(word)
+      words.push(word)
+    }
   }
   return words
 }
@@ -100,7 +128,11 @@ const loadExistingBundle = () => {
 
 const buildBundle = () => {
   const rawWordList = fs.readFileSync(WORD_LIST_PATH, 'utf8')
-  const words = parseWordList(rawWordList)
+  const baseWords = parseWordList(rawWordList)
+  const baseWordSet = new Set(baseWords)
+  const packWords = loadPackWords()
+  const extraWords = packWords.filter((word) => !baseWordSet.has(word))
+  const words = [...baseWords, ...extraWords]
   const wordSet = new Set(words)
   const existing = loadExistingBundle()
   const { idx, dict } = loadDictionaryBuffers()
@@ -155,7 +187,9 @@ const buildBundle = () => {
   }
 
   const coverage = ((ruCount / words.length) * 100).toFixed(2)
-  console.log(`RU coverage: ${ruCount}/${words.length} (${coverage}%)`)
+  console.log(
+    `RU coverage: ${ruCount}/${words.length} (${coverage}%) | base ${baseWords.length} + packs ${extraWords.length}`,
+  )
 
   const orderedKeys = Object.keys(result).sort()
   const orderedResult = {}
