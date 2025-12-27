@@ -81,8 +81,9 @@ I want to practice only the words where I previously made mistakes
 so that I can efficiently close my vocabulary and typing gaps.[10]
 
 ### Acceptance Criteria
-- The app stores for each word how many mistakes were made across sessions.[6]
-- User can start a session in “mistakes only” mode from the main screen or settings.[10]
-- In “mistakes only” mode, the word list is limited to words with at least one recorded mistake.[10]
-- Words with more mistakes appear more frequently or earlier in the session.[10]
-- If there are no recorded mistakes, the app shows a clear message and suggests starting a regular session instead.[5]
+- The app records per-word mistakes on word commit; a word counts as a mistake if any errors were typed before commit.[6]
+- Mistakes are stored locally and survive reloads; if storage is unavailable, the app degrades gracefully.[5]
+- User can start a session in “mistakes only” mode from the setup screen.[10]
+- In “mistakes only” mode, the word list is limited to words with at least one recorded mistake, filtered by the current level pack.[10]
+- Words with more mistakes appear earlier (tie-break by recency).[10]
+- If there are no recorded mistakes for the selected level, the app shows a clear message and does not start a session.[5]
