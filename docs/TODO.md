@@ -24,3 +24,10 @@
 - [ ] UI polish (zero-distraction)
 - [ ] Deploy
 - [ ] Documentation cleanup
+
+## US-010 Offline RU translations (FreeDict)
+
+- [ ] US-010a Generator: build RU translations bundle (intersection with 10k)
+- [ ] US-010b App: load translations bundle + integrate into TranslationProvider
+- [ ] US-010c Docs: attribution/licensing + gitignore for raw dict files
+

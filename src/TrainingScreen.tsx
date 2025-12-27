@@ -3,6 +3,7 @@ import wordListRaw from './data/raw/google-10000-english.txt?raw'
 import { appendSession } from './domain/sessionStore'
 import { loadAutoSpeak, saveAutoSpeak } from './domain/pronunciationSettings'
 import { StatsModule } from './domain/statsModule'
+import { loadTranslationBundle } from './domain/translationBundle'
 import { webSpeechPronunciationProvider } from './domain/webSpeechPronunciationProvider'
 import { localTranslationProvider } from './domain/translationProvider'
 import { loadTranslationLanguage, saveTranslationLanguage } from './domain/translationSettings'
@@ -56,6 +57,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   const [statusText, setStatusText] = useState('')
   const [errorFlash, setErrorFlash] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
+  const [, setBundleVersion] = useState(0)
   const [statsView, setStatsView] = useState({
     wpm: 0,
     accuracy: 0,
@@ -69,9 +71,7 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
 
   const target = wordOrder[wordIndex % wordOrder.length]
   const targetLetters = useMemo(() => target.split(''), [target])
-  const translation = useMemo(() => {
-    return localTranslationProvider.getTranslation(target, language)
-  }, [language, target])
+  const translation = localTranslationProvider.getTranslation(target, language)
   const isSpeechAvailable = webSpeechPronunciationProvider.isAvailable()
 
   useEffect(() => {
@@ -81,6 +81,22 @@ const TrainingScreen = ({ onShowHistory }: TrainingScreenProps) => {
   useEffect(() => {
     saveTranslationLanguage(language)
   }, [language])
+
+  useEffect(() => {
+    let isMounted = true
+
+    loadTranslationBundle().then((bundle) => {
+      if (!isMounted || !bundle) {
+        return
+      }
+      localTranslationProvider.setBundle(bundle)
+      setBundleVersion((prev) => prev + 1)
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     saveAutoSpeak(autoSpeak)

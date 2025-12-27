@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "build:ru": "node scripts/build-ru-translations.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

@@ -19,4 +19,19 @@ describe('LocalTranslationProvider', () => {
     expect(provider.getTranslation('focus', 'de')).toBe(TRANSLATION_PLACEHOLDER)
     expect(provider.getTranslation('unknown', 'ua')).toBe(TRANSLATION_PLACEHOLDER)
   })
+
+  it('prefers bundle translations when available', () => {
+    const provider = new LocalTranslationProvider({
+      gym: { ru: 'спортзал' },
+      focus: { ua: 'фокус' },
+    })
+
+    provider.setBundle({
+      gym: { ru: 'тренажерный зал' },
+      focus: { ru: 'фокус' },
+    })
+
+    expect(provider.getTranslation('gym', 'ru')).toBe('тренажерный зал')
+    expect(provider.getTranslation('focus', 'ua')).toBe('фокус')
+  })
 })
