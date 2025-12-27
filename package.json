@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "build:ru": "node scripts/build-ru-translations.mjs"
+    "build:ru": "node scripts/build-ru-translations.mjs",
+    "dict:refresh:ru": "node scripts/dict-refresh-ru.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
