@@ -1,4 +1,3 @@
-import { TRANSLATIONS } from '../data/translations'
 import type { TranslationEntry, TranslationLanguage } from './translationTypes'
 
 export const TRANSLATION_PLACEHOLDER = '—'
@@ -40,4 +39,4 @@ export class LocalTranslationProvider implements TranslationProvider {
   }
 }
 
-export const localTranslationProvider = new LocalTranslationProvider(TRANSLATIONS)
+export const localTranslationProvider = new LocalTranslationProvider({})
