@@ -1,7 +1,5 @@
 # Bilingual Typing Trainer
 
-![CI](https://github.com/Sekator778/bilingual-typing-trainer/actions/workflows/ci.yml/badge.svg)
-
 A zero-distraction touch-typing trainer that pairs English typing practice with instant translation and optional pronunciation.
 
 A zero-distraction touch-typing trainer for English words with:
