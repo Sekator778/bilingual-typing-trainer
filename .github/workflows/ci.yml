@@ -28,14 +28,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests (debug)
-        run: npx vitest run --reporter=verbose --sequence.concurrent=false --pool=forks --logHeapUsage
+      - name: Run tests
+        run: npm run test:run
 
       - name: Run lint
         run: npm run lint
