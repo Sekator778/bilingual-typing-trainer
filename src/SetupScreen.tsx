@@ -77,69 +77,84 @@ const SetupScreen = ({ onStart, onShowHistory }: SetupScreenProps) => {
         </p>
       </header>
 
-      <div className="setup__card">
-        <label className="setup__label" htmlFor="level-select">
-          Level
-        </label>
-        <select
-          id="level-select"
-          className="setup__select"
-          value={resolvedLevel}
-          onChange={handleLevelChange}
-        >
-          {availableLevels.map((option) => (
-            <option key={option} value={option}>
-              {formatPackLabel(option)}
-            </option>
-          ))}
-        </select>
-        <div className="setup__mode">
-          <span className="setup__label">Mode</span>
-          <div className="mode-toggle" role="group" aria-label="Training mode">
-            {TRAINING_MODES.map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={`mode-toggle__button ${mode === option ? 'is-active' : ''}`}
-                onClick={() => handleModeChange(option)}
-                aria-pressed={mode === option}
-              >
-                {TRAINING_MODE_LABELS[option]}
-              </button>
+      <div className="setup__layout">
+        <div className="setup__card">
+          <label className="setup__label" htmlFor="level-select">
+            Level
+          </label>
+          <select
+            id="level-select"
+            className="setup__select"
+            value={resolvedLevel}
+            onChange={handleLevelChange}
+          >
+            {availableLevels.map((option) => (
+              <option key={option} value={option}>
+                {formatPackLabel(option)}
+              </option>
             ))}
+          </select>
+          <div className="setup__mode">
+            <span className="setup__label">Mode</span>
+            <div className="mode-toggle" role="group" aria-label="Training mode">
+              {TRAINING_MODES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`mode-toggle__button ${mode === option ? 'is-active' : ''}`}
+                  onClick={() => handleModeChange(option)}
+                  aria-pressed={mode === option}
+                >
+                  {TRAINING_MODE_LABELS[option]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="setup__mode">
+            <span className="setup__label">Session length</span>
+            <div className="preset-toggle" role="group" aria-label="Session length">
+              {PRESET_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`preset-toggle__button ${
+                    resolvedPresetId === option.id ? 'is-active' : ''
+                  }`}
+                  onClick={() => handlePresetChange(option.id)}
+                  aria-pressed={resolvedPresetId === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {warning && (
+            <p className="setup__warning" role="status">
+              {warning}
+            </p>
+          )}
+          <div className="setup__actions">
+            <button type="button" className="primary-button" onClick={handleStart}>
+              Start training
+            </button>
+            <button type="button" className="ghost-button" onClick={onShowHistory}>
+              History
+            </button>
           </div>
         </div>
-        <div className="setup__mode">
-          <span className="setup__label">Session length</span>
-          <div className="preset-toggle" role="group" aria-label="Session length">
-            {PRESET_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`preset-toggle__button ${
-                  resolvedPresetId === option.id ? 'is-active' : ''
-                }`}
-                onClick={() => handlePresetChange(option.id)}
-                aria-pressed={resolvedPresetId === option.id}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {warning && (
-          <p className="setup__warning" role="status">
-            {warning}
+
+        <aside className="setup__aside" aria-label="About and setup">
+          <p className="setup__aside-title">What this trainer does</p>
+          <p className="setup__aside-text">
+            Practice English typing with instant translation support in a calm,
+            focused flow.
           </p>
-        )}
-        <div className="setup__actions">
-          <button type="button" className="primary-button" onClick={handleStart}>
-            Start training
-          </button>
-          <button type="button" className="ghost-button" onClick={onShowHistory}>
-            History
-          </button>
-        </div>
+          <ul className="setup__aside-list">
+            <li>Select a level pack that matches your vocabulary.</li>
+            <li>Choose a mode: normal practice or only past mistakes.</li>
+            <li>Pick a session length before you start.</li>
+          </ul>
+        </aside>
       </div>
     </div>
   )

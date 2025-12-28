@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/Sekator778/bilingual-typing-trainer/actions/workflows/ci.yml/badge.svg)
 
-A zero-distraction touch-typing trainer for English words with translation and pronunciation.
+A zero-distraction touch-typing trainer that pairs English typing practice with instant translation and optional pronunciation.
 
 A zero-distraction touch-typing trainer for English words with:
 - always-visible translation (RU/UA/DE)
@@ -50,6 +50,16 @@ you type an English word, see the translation immediately, and can listen to pro
 - History list with metadata (level, mode, preset, outcome)
 - Mistakes store per word and “Mistakes only” mode
 - Export/Import progress (JSON snapshot)
+
+## Base Setup (Start Screen)
+
+Use the Setup screen to configure a session before training:
+- Choose a word pack (level)
+- Pick a mode: Normal or Mistakes only
+- Select a preset length (infinite, by words, by time)
+- Set translation language (RU/UA/DE)
+- Toggle auto-advance and auto-speak
+- Start training
 
 ## Tech Stack
 - Vite + React + TypeScript
